@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Soil Buddy RE – 3D Circuit Simulator</title>
+<style>
+:root{--bg:#f3eee4;--pn:#fffcf6;--ink:#1f2a36;--mu:#6b7785;--ac:#2f7fd1;--ln:#ddd5c6}
+[data-theme=dark]{--bg:#13202b;--pn:#1b2a37;--ink:#e8eef4;--mu:#93a4b5;--ac:#5aa9f0;--ln:#2e4252}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,"Segoe UI",sans-serif;overflow:hidden}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.pn{position:fixed;background:var(--pn);border:1px solid var(--ln);border-radius:14px;padding:10px 12px}
+button{font:inherit;cursor:pointer;color:var(--ink);background:transparent;border:1px solid var(--ln);border-radius:9px;padding:6px 10px}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}button:disabled{opacity:.45;cursor:default}
+select,input[type=text]{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--ln);border-radius:9px;padding:5px;width:100%}
+#top{left:12px;top:12px;display:flex;gap:10px;align-items:center;padding:6px 8px}
+#menu{left:12px;top:60px;width:250px;max-height:calc(100vh - 80px);overflow:auto}
+#menu label{display:flex;justify-content:space-between;align-items:center;margin:8px 0 3px;font-weight:600;font-size:12px}
+#menu .g{color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-top:12px}
+#menu .r{display:flex;gap:6px;margin-top:6px}#menu .r button{flex:1}
+input[type=range]{width:100%;accent-color:var(--ac)}input[type=checkbox]{accent-color:var(--ac);width:16px;height:16px}
+#sel{left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:8px 12px}
+#sel b{font-size:16px;display:block}#sel small{color:var(--mu)}#sel .t{min-width:210px;text-align:center}
+#sel button{width:38px;height:38px;border-radius:50%;font-size:18px;padding:0}
+#info{right:12px;bottom:14px;max-width:300px;display:none}
+#sim{right:12px;top:12px;padding:4px 10px;font-size:11px;color:var(--mu)}
+.mk{position:fixed;left:0;top:0;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--ac);color:#fff;font:700 12px/22px system-ui;text-align:center;border:2px solid #fff;cursor:pointer;padding:0}
+.mk.on{outline:3px solid #f2b84b}.nm .mk{display:none}
+/* phone app */
+#ph{right:14px;top:14px;width:312px;height:min(660px,calc(100vh - 28px));display:none;flex-direction:column;background:#f5efe3;color:#1f2a36;border:7px solid #15191e;border-radius:34px;padding:12px;--ac:#2f7fd1;--ln:#e3dac8;--ink:#1f2a36;--mu:#6b7785}
+#ph.on{display:flex}#ph button{color:#1f2a36}#ph button.p{color:#fff}
+.scr{display:none;flex:1;flex-direction:column;min-height:0}.scr.on{display:flex}
+.hd{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:8px}
+.cd{background:#fff;border-radius:18px;padding:10px 12px;margin-bottom:8px}.cd h4{margin:0 0 4px;font-size:12px;color:var(--mu);font-weight:600}
+.big{font-size:30px;font-weight:700;letter-spacing:-.02em}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:10px;margin:6px 0}
+.row small{display:block;color:var(--mu)}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pg{display:none;flex:1;overflow:auto;min-height:0}.pg.on{display:block}
+.tb{display:flex;justify-content:space-around;padding-top:8px;border-top:1px solid var(--ln)}.tb button{border:0;font-size:12px;color:var(--mu)}.tb button.on{color:var(--ac);font-weight:700}
+.pill{display:inline-block;padding:2px 10px;border-radius:10px;background:#e8e1d2;font-weight:700;font-size:11px}.pill.on{background:var(--ac);color:#fff}.pill.bad{background:#c8472d;color:#fff}
+#out{height:340px;overflow:auto;background:#101a24;color:#a9d6ff;font:11px/1.35 ui-monospace,monospace;padding:8px;border-radius:12px;white-space:pre-wrap}
+#pcam{width:100%;border-radius:14px;background:#000}
+canvas#c{touch-action:none}
+@media (max-width:700px){
+button{min-height:36px}select,input[type=text]{font-size:16px}
+#top{left:8px;top:8px}#menu{left:8px;right:8px;top:56px;width:auto;max-height:60vh}
+#sim{display:none}#sel{left:8px;right:8px;bottom:8px;transform:none;justify-content:space-between;gap:6px}#sel .t{min-width:0;flex:1}#sel b{font-size:15px}
+#info{left:8px;right:8px;bottom:84px;max-width:none}
+.mk{width:20px;height:20px;margin:-10px 0 0 -10px;font:700 11px/18px system-ui}
+#ph{left:8px;right:8px;top:8px;bottom:8px;width:auto;height:auto;border-width:5px;border-radius:26px}#out{height:44vh}}
+</style></head><body>
+<canvas id="c"></canvas>
+<div class="pn" id="top"><button class="p" id="bMenu">Controls &#9662;</button><button id="bBack" hidden>&#8249; Back</button><span id="stx" class="mu"></span></div>
+<div class="pn" id="menu" hidden>
+<div class="g" style="margin-top:0">Watering</div>
+<div class="r"><button id="bAuto">Auto: OFF</button><button id="bTest">Pump test 30s</button></div>
+<label>Water in tank <span id="wv">500 mL</span></label><input type="range" id="rWat" min="0" max="500" step="10" value="500">
+<label>Soil moisture (SMS) <span id="sLv">30%</span></label><input type="range" id="rSoil" min="0" max="100" value="30">
+<label>Sim speed</label><select id="selT"><option value="1">x1</option><option value="10" selected>x10</option><option value="60">x60</option></select>
+<div class="g">Camera and faults</div>
+<label>Detection mistakes <span id="mv">8%</span></label><input type="range" id="rMis" min="0" max="60" value="8">
+<label>Fault</label><select id="selF"><option value="none">None</option><option value="water">Low water in tank</option><option value="probe">Soil probe disconnected</option><option value="stuck">Pump stuck, no flow</option><option value="blur">Blurry or dark camera</option></select>
+<div class="g">Display</div>
+<label>Reveal true soil % <input type="checkbox" id="cRev"></label>
+<label>Part markers <input type="checkbox" id="cMk" checked></label>
+<label>Dark mode <input type="checkbox" id="cDk"></label>
+<label>High quality <input type="checkbox" id="cHq" checked></label>
+<div class="g">Tools</div>
+<div class="r"><button id="bRef">Refill tank</button><button id="bCsv">Export CSV</button></div>
+<div class="r"><button id="bLap">Laptop</button><button id="bPh">Phone</button><button id="bHome">Reset</button></div>
+</div>
+<div class="pn" id="sel"><button id="bPrev" aria-label="Previous plant">&#8249;</button><div class="t"><b id="pn">Sili</b><small id="ps"></small></div><button id="bNext" aria-label="Next plant">&#8250;</button></div>
+<div class="pn" id="info"></div><div class="pn" id="sim">Simulation</div>
+<div id="mks"></div>
+<div class="pn" id="ph">
+<div class="scr on" id="s-conn"><div class="hd">Soil Buddy <button id="bX" style="padding:2px 12px">Exit</button></div>
+<div class="cd"><h4>Controller</h4><div class="big" style="font-size:20px">Bluetooth</div><button class="p" id="bScan" style="margin-top:8px">Scan for devices</button><div id="devs"></div></div>
+<div class="cd" id="wf" hidden><h4>Camera</h4><div class="big" style="font-size:20px">Wi-Fi</div><button class="p" id="bJoin" style="margin-top:8px">Join ESP32-CAM network</button><small id="wfs" style="display:block;margin-top:6px;color:#6b7785"></small></div>
+<button class="p" id="bOpen" disabled style="margin-top:auto;padding:10px">Open dashboard</button></div>
+<div class="scr" id="s-app"><div class="hd"><span><button id="aBack" style="padding:0 9px;margin-right:6px">&#8249;</button><span id="aPl">Sili</span></span><span><span class="pill on">Connected</span> <button id="aX" style="padding:2px 12px;margin-left:6px">Exit</button></span></div>
+<div class="pg on" id="pg-h">
+<div class="two"><div class="cd" style="margin:0"><h4>Water tank</h4><svg viewBox="0 0 120 150" id="bk" width="100%"><defs><clipPath id="bc"><path d="M20 20H100L92 140H28Z"/></clipPath></defs><path d="M20 20H100L92 140H28Z" fill="#eaf3fb"/><g clip-path="url(#bc)"><path id="bw" fill="#4aa3e8"/></g><path d="M20 20H100L92 140H28Z" fill="none" stroke="#1f2a36" stroke-width="3"/><path d="M20 24Q60 6 100 24" fill="none" stroke="#1f2a36" stroke-width="3"/><g id="bt" font-size="9" fill="#1f2a36"></g></svg><div><b id="dMl">-</b> <small id="dWc"></small></div></div>
+<div class="cd" style="margin:0"><h4>Soil moisture <button id="gT" class="p" style="padding:0 6px;font-size:10px">Gauge</button><button id="pT" style="padding:0 6px;font-size:10px">Pot</button></h4>
+<svg id="gg" viewBox="0 0 180 120" width="100%"><path d="M20 100A70 70 0 0 1 160 100" pathLength="100" fill="none" stroke="#e3dac8" stroke-width="14" stroke-linecap="round"/><path id="gb" d="M20 100A70 70 0 0 1 160 100" pathLength="100" fill="none" stroke="#b9d6f2" stroke-width="14"/><path id="gv" d="M20 100A70 70 0 0 1 160 100" pathLength="100" fill="none" stroke="#2f7fd1" stroke-width="14" stroke-linecap="round"/><text x="90" y="95" text-anchor="middle" font-size="26" font-weight="700" id="gn" fill="#1f2a36">--</text><text x="14" y="116" font-size="9" fill="#6b7785">Dry</text><text x="150" y="116" font-size="9" fill="#6b7785">Wet</text></svg>
+<svg id="pp" viewBox="0 0 140 130" width="100%" hidden><defs><clipPath id="pc"><path d="M32 70H108L98 125H42Z"/></clipPath></defs><path d="M32 70H108L98 125H42Z" fill="#c2693a"/><g clip-path="url(#pc)"><rect id="ps2" x="0" width="140" fill="#3a5f86"/></g><path id="pst" stroke="#4f9a3d" stroke-width="4" fill="none"/><ellipse id="pl1" fill="#5bb04a" rx="14" ry="6"/><ellipse id="pl2" fill="#5bb04a" rx="14" ry="6"/><text x="70" y="112" text-anchor="middle" font-size="16" font-weight="700" fill="#fff" id="pn2">--</text></svg></div></div>
+<div class="cd" style="margin-top:8px"><h4>Pump</h4><span class="pill" id="dP">OFF</span> <span class="pill" id="dA">Auto off</span> <span class="pill" id="dD">No demand</span><div style="margin-top:6px"><small id="dTh"></small></div><small id="dTrue" style="color:#2f7fd1"></small></div>
+<div class="cd"><h4>Plant</h4><b id="dPl">-</b> <small id="dC"></small><div><small id="dMsg"></small></div></div></div>
+<div class="pg" id="pg-c"><canvas id="pcam" width="480" height="360"></canvas><p style="color:#6b7785" id="cn">Join the camera Wi-Fi to view the stream.</p></div>
+<div class="pg" id="pg-t"><div id="out"></div><input type="text" id="cmd" placeholder="Type a command, e.g. help" autocomplete="off" style="margin-top:6px"></div>
+<div class="tb"><button class="on" data-t="h">Home</button><button data-t="c">Camera</button><button data-t="t">Terminal</button></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),V=(x,y,z)=>new THREE.Vector3(x,y,z),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const P=[{n:'Sili',en:'chili',col:'#ff5252',st:50,sp:65,r:.7},{n:'Ampalaya',en:'bitter gourd',col:'#ffd54f',st:50,sp:65,r:.8},{n:'Kangkong',en:'water spinach',col:'#4dd0e1',st:50,sp:65,r:1},{n:'Pechay',en:'bok choy',col:'#b388ff',st:50,sp:65,r:.9},{n:'Tomato',en:'tomato',col:'#ff8a65',st:50,sp:65,r:.8}];
+const xs=[-8,-4,0,4,8],CUT=1.43,REC=1.76;
+// ---------- state ----------
+const tr=[30,45,62,52,42];let water=9,act=0,auto=false,pump=false,pLeft=0,manual=false,demand=false,below=0,above=0,done=0,nextOK=0,lockUntil=0,simT=0,acc=0,live=false,lastSoil=null,lastW=9,soilOK=true,det=[],csv=['sim_s,probe_plant,profile_used,true_soil,app_soil,water_cm,pump'],msg='Ready.';
+// ---------- renderer ----------
+const R=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.1;
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,1,.1,300);
+{const es=new THREE.Scene(),gc=document.createElement('canvas');gc.width=4;gc.height=128;const q=gc.getContext('2d'),gr=q.createLinearGradient(0,0,0,128);gr.addColorStop(0,'#fff');gr.addColorStop(.5,'#9aa3b0');gr.addColorStop(1,'#3a3a40');q.fillStyle=gr;q.fillRect(0,0,4,128);
+es.add(new THREE.Mesh(new THREE.SphereGeometry(50,16,12),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(gc),side:THREE.BackSide})));scene.environment=new THREE.PMREMGenerator(R).fromScene(es,.03).texture}
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f98,.55));
+const sun=new THREE.DirectionalLight(0xffffff,1.6);sun.position.set(12,28,18);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26,near:5,far:90});sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;scene.add(sun);const fill=new THREE.DirectionalLight(0xbfd8ff,.4);fill.position.set(-16,12,-10);scene.add(fill);
+// ---------- helpers ----------
+const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.5,metalness:0},o));
+const GOLD=M(0xd9b24c,{metalness:1,roughness:.25}),STEEL=M(0xcfd3d8,{metalness:1,roughness:.28}),BLK=M(0x141417,{roughness:.4});
+function add(p,g,m,x,y,z){const o=new THREE.Mesh(g,m);o.castShadow=o.receiveShadow=true;o.position.set(x||0,y||0,z||0);(p||scene).add(o);return o}
+const box=(p,w,h,d,m,x,y,z)=>add(p,new THREE.BoxGeometry(w,h,d),m,x,y,z);
+const cyl=(p,a,b,h,m,x,y,z,s)=>add(p,new THREE.CylinderGeometry(a,b,h,s||24),m,x,y,z);
+function rb(p,w,h,d,r,m,x,y,z){const s=new THREE.Shape(),a=w/2,b=d/2;s.moveTo(-a+r,-b);s.lineTo(a-r,-b);s.quadraticCurveTo(a,-b,a,-b+r);s.lineTo(a,b-r);s.quadraticCurveTo(a,b,a-r,b);s.lineTo(-a+r,b);s.quadraticCurveTo(-a,b,-a,b-r);s.lineTo(-a,-b+r);s.quadraticCurveTo(-a,-b,-a+r,-b);
+const g=new THREE.ExtrudeGeometry(s,{depth:h,bevelEnabled:false,curveSegments:6});g.rotateX(-Math.PI/2);return add(p,g,m,x,y,z)}
+function ctex(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.anisotropy=8;return t}
+function tag(p,tex,w,d,x,y,z){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({map:tex,transparent:true,polygonOffset:true,polygonOffsetFactor:-2}));m.rotation.x=-Math.PI/2;m.position.set(x,y,z);p.add(m)}
+const txt=(s,w,h,col)=>ctex(w*24,h*24,(c,W,H)=>{c.fillStyle=col||'#fff';c.font='600 '+H*.6+'px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(s,W/2,H/2)});
+const pk=[],INFO={};
+function G(id,x,y,z){const g=new THREE.Group();g.userData.id=id;g.position.set(x||0,y||0,z||0);scene.add(g);pk.push(g);return g}
+function W(a,b,col,lift){const m=a.clone().add(b).multiplyScalar(.5);m.y+=lift;scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a,m,b),32,.09,8),M(col,{roughness:.4})))}
+// ---------- desk ----------
+let deskM;{const t=ctex(512,512,(c,w,h)=>{c.fillStyle='#4f7d5b';c.fillRect(0,0,w,h);for(let i=0;i<=16;i++){const m=i%4==0;c.strokeStyle=m?'rgba(235,255,235,.38)':'rgba(235,255,235,.15)';c.lineWidth=m?2.5:1;c.beginPath();c.moveTo(i*32,0);c.lineTo(i*32,h);c.moveTo(0,i*32);c.lineTo(w,i*32);c.stroke()}});t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,2);
+deskM=M(0xffffff,{map:t,roughness:.95});box(null,70,1,46,deskM,0,-.5,0)}
+// ---------- pot, pedestal, probe ----------
+const pot=G('plant',0,0,0),soilM=M(0x4a3426,{roughness:1}),terra=M(0xc2693a,{roughness:.75});
+cyl(pot,3.5,3.7,.5,M(0xe9e2d3,{roughness:.6}),0,.25,0,48);cyl(pot,2.1,1.5,2,terra,0,1.5,0,32);cyl(pot,2.3,2.3,.3,terra,0,2.55,0,32);cyl(pot,1.95,1.95,.1,soilM,0,2.66,0,32);
+const probe=G('probe',1.1,2.65,.4);box(probe,.14,2.8,.05,M(0xb08a2c,{metalness:.8,roughness:.3}),-.12,1.4,0);box(probe,.14,2.8,.05,M(0xb08a2c,{metalness:.8,roughness:.3}),.12,1.4,0);box(probe,.7,.9,.06,M(0x2a6b3a),0,2.9,0);
+const smod=G('probe',-6,0,3);rb(smod,2.6,.25,1.5,.15,M(0x1f56b8,{roughness:.4}),0,.1,0);box(smod,.9,.18,.4,BLK,-.3,.5,-.2);rb(smod,.7,.4,.7,.05,M(0x2a63d6),.7,.35,.2);cyl(smod,.2,.2,.1,STEEL,.7,.8,.2,12);for(let k=0;k<4;k++)box(smod,.06,.4,.06,GOLD,-1.1+k*.25,.5,.6);
+tag(smod,txt('SOIL AO',2,.4),2,.4,-.2,.37,.55);
+// ---------- plants (low poly, flat shaded) ----------
+const FM=c=>new THREE.MeshStandardMaterial({color:c,roughness:.7,flatShading:true});
+const ico=(g,r,m,x,y,z,sx,sy,sz,d)=>{const o=add(g,new THREE.IcosahedronGeometry(r,d||0),m,x,y,z);o.scale.set(sx,sy,sz);return o};
+const dryC=new THREE.Color(0xb59a3a),PL=[];
+function mkPlant(i){const g=new THREE.Group(),lm=FM([0x3f9b3a,0x2f7a2b,0x7cc24d,0x4aa84a,0x3d8f3a][i]),st=FM(0x5aa84a);g.userData={lm,h:lm.color.clone()};g.position.y=2.65;
+const stem=(h,x,z,rx,rz,r)=>{const s=cyl(g,(r||.07)*.7,r||.07,h,st,x,h/2,z,6);s.rotation.set(rx||0,0,rz||0);return s};
+if(i==0){stem(3.6,0,0);for(let k=0;k<7;k++){const a=k*2.4;ico(g,.6,lm,Math.sin(a)*.8,1.4+k*.4,Math.cos(a)*.8,1,.35,.7,0).rotation.y=a}
+[[.9,2.4,.2,0xe53935],[-.8,2.9,-.3,0xe53935],[.2,3.3,.9,0x7cb342],[-.5,2.1,.8,0xff7043],[.7,3.2,-.7,0xe53935]].forEach(([x,y,z,c])=>{const f=cyl(g,.02,.17,1.1,FM(c),x,y-.55,z,8);f.rotation.z=x*.1;cyl(g,.03,.03,.3,st,x,y+.1,z,5)})}
+if(i==1){stem(2.2,0,0);const tm=FM(0x8a6a44);const arch=add(g,new THREE.TorusGeometry(2.2,.07,6,24,Math.PI),tm,0,1.3,0);arch.position.y=1.3;[-2.2,2.2].forEach(x=>cyl(g,.07,.07,1.3,tm,x,.65,0,6));
+for(let k=0;k<9;k++){const a=k*.35;ico(g,.5,lm,-2+Math.cos(a)*0+k*.5-.3,1.5+Math.sin(k*.9)*.4+Math.sin(k*.35)*1.6,Math.sin(k)*.4,1,.15,1,0)}
+[-1.5,0,1.3].forEach((x,k)=>{const y=1.3+Math.sqrt(Math.max(0,2.2*2.2-x*x))-1.2;const f=ico(g,.35,FM(0x7cb342),x,y,.2,.5,1.5,.5,1);cyl(g,.03,.03,.5,st,x,y+1.1,.2,5)})}
+if(i==2){for(let k=0;k<8;k++){const a=k*.8,x=Math.sin(a)*.5,z=Math.cos(a)*.5;stem(3.6,x,z,Math.cos(a)*.3,-Math.sin(a)*.3,.05);const l=ico(g,.5,lm,Math.sin(a)*1.3,3.6+(k%3)*.3,Math.cos(a)*1.3,.5,.12,1,0);l.rotation.y=a}
+ico(g,.35,lm,0,3,0,1,.2,1,0)}
+if(i==3){const sm=FM(0xe6f2cf);for(let k=0;k<8;k++){const a=k*.8;const s=cyl(g,.14,.22,2.3,sm,Math.sin(a)*.55,1.2,Math.cos(a)*.55,6);s.rotation.set(Math.cos(a)*.25,0,-Math.sin(a)*.25);const l=ico(g,.85,lm,Math.sin(a)*1.1,2.6,Math.cos(a)*1.1,.85,.16,1.2,0);l.rotation.y=a;l.rotation.x=-Math.cos(a)*.2}}
+if(i==4){stem(4.4,0,0,0,0,.09);cyl(g,.04,.04,4.8,FM(0x8a6a44),.5,2.4,0,5);for(let k=0;k<6;k++){const a=k*2.2;ico(g,.55,lm,Math.sin(a)*.9,1.2+k*.55,Math.cos(a)*.9,1,.25,.7,0).rotation.y=a}
+[[.8,2.4,.4,0xe53935],[-.7,2.8,.3,0xe53935],[.2,2,-.8,0xe53935],[-.4,3.4,-.5,0xd4e157],[.7,3.2,-.4,0xe53935]].forEach(([x,y,z,c])=>{ico(g,.42,FM(c),x,y,z,1,.95,1,1);ico(g,.18,lm,x,y+.4,z,1,.3,1,0);cyl(g,.03,.03,.5,st,x*.5,y+.5,z*.5,5)})}
+pot.add(g);g.visible=false;return g}
+for(let i=0;i<5;i++)PL.push(mkPlant(i));
+// ---------- ESP32 on expansion board ----------
+const vtag=(p,t,w,h,x,y,z)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true}));m.position.set(x,y,z);p.add(m)};
+const chip=(p,w,d,x,y,z,t)=>{box(p,w,.16,d,M(0x101114,{roughness:.35}),x,y,z);if(t)tag(p,txt(t,w*.9,d*.5,'#aeb3bb'),w*.9,d*.5,x,y+.09,z)};
+const esp=G('esp',-12,0,-4),pcb=M(0x1a7a42,{roughness:.45}),dk=M(0x12161f,{roughness:.35});
+rb(esp,9.4,.3,6.4,.35,pcb,0,0,0);
+tag(esp,ctex(752,512,(c,w,h)=>{c.strokeStyle='#dff2d8';c.lineWidth=3;c.strokeRect(12,12,w-24,h-24);c.fillStyle='#dff2d8';c.font='600 28px sans-serif';c.textAlign='center';c.fillText('ESP32 EXPANSION BOARD',w/2,h-30)}),9.4,6.4,0,.31,0);
+for(let k=0;k<4;k++){const x=-3.6+k*1.15;box(esp,1,.75,.85,M(0x2f6fd0,{roughness:.4}),x,.675,2.3);cyl(esp,.27,.27,.1,STEEL,x,1.08,2.3,16);box(esp,.4,.05,.07,BLK,x,1.14,2.3);box(esp,.55,.3,.08,BLK,x,.5,2.75)}
+tag(esp,txt('GND   5V   3V3   VIN',4.4,.35,'#dff2d8'),4.4,.35,-2.2,.32,1.55);
+[-1.55,.75].forEach(z=>box(esp,5,.6,.25,BLK,-.8,.6,z));
+const dv=new THREE.Group();dv.position.set(-.8,.9,-.4);esp.add(dv);rb(dv,5.4,.12,2.5,.1,dk,0,0,0);
+box(dv,2.4,.3,1.9,STEEL,-.2,.27,0);tag(dv,txt('ESP-WROOM-32',2.1,.45,'#555'),2.1,.45,-.2,.43,0);
+tag(dv,ctex(256,200,(c,w,h)=>{c.strokeStyle='#d9b24c';c.lineWidth=7;c.beginPath();for(let k=0;k<7;k++){const x=20+k*32;c.moveTo(x,h-20);c.lineTo(x,30);c.lineTo(x+16,30);c.lineTo(x+16,h-20)}c.stroke()}),1.6,1.6,1.85,.13,0);
+box(dv,.6,.32,.8,STEEL,-2.5,.28,0);box(dv,.3,.2,.5,BLK,-2.72,.28,0);chip(dv,.55,.55,-1.7,.2,0,'CP2102');
+[-.9,.9].forEach(z=>{box(dv,.4,.25,.4,STEEL,-1.95,.25,z);box(dv,.22,.1,.22,BLK,-1.95,.4,z)});box(dv,.12,.06,.12,M(0x3da8ff,{emissive:0x3da8ff,emissiveIntensity:1.2}),-1.2,.15,1.05);
+tag(esp,ctex(1024,96,(c,w,h)=>{const L=['3V3','EN','VP','VN','D34','D35','D32','D33','D25','D26','D27','D14','D12','GND','VIN'];c.font='600 34px sans-serif';c.textAlign='center';L.forEach((t,i)=>{c.fillStyle=['D34','D35','D26'].includes(t)?'#ffd54f':'#dff2d8';c.fillText(t,34+i*66,60)})}),5.1,.48,-.8,.32,1.1);
+for(let r=0;r<5;r++){const z=-2.3+r*1.05;box(esp,.45,.38,1.0,BLK,3.9,.49,z);[[0x1c1c20,-.3],[0xd32f2f,0],[0xf2c200,.3]].forEach(([c,o])=>box(esp,.12,.5,.12,M(c),3.9,.8,z+o))}
+tag(esp,txt('G V S',.9,.3,'#dff2d8'),.9,.3,3.9,.32,-3.0);box(esp,1.2,.85,1.1,BLK,-4.0,.725,-2.4);cyl(esp,.28,.28,.1,M(0x050505),-4.0,1.17,-2.4,16);
+// ---------- breadboard + TIP120 + resistors + diode ----------
+const bb=G('bb',-3,0,-7);rb(bb,8,.8,3.2,.2,M(0xf0ece0,{roughness:.55}),0,0,0);
+tag(bb,ctex(1280,512,(c,w,h)=>{c.fillStyle='#d9d4c4';c.fillRect(0,h*.46,w,h*.08);c.font='600 18px sans-serif';c.textAlign='center';
+for(let col=0;col<30;col++){const x=60+col*38;for(let r=0;r<10;r++){const y=r<5?150+r*36:292+(r-5)*36;c.fillStyle='#1d1d20';c.fillRect(x-7,y-7,14,14)}if(col%5==4){c.fillStyle='#777';c.fillText(col+1,x,126);c.fillText(col+1,x,462)}}
+c.fillStyle='#d23b3b';c.fillRect(30,34,w-60,4);c.fillRect(30,h-46,w-60,4);c.fillStyle='#2f64d6';c.fillRect(30,52,w-60,4);c.fillRect(30,h-64,w-60,4);
+for(let col=0;col<25;col++){if(col%5==0)continue;const x=70+col*45;[84,h-90].forEach(y=>{c.fillStyle='#1d1d20';c.fillRect(x-7,y-7,14,14)})}
+c.fillStyle='#555';c.textAlign='left';'abcde'.split('').forEach((l,i)=>c.fillText(l,12,155+i*36));'fghij'.split('').forEach((l,i)=>c.fillText(l,12,297+i*36))}),7.6,3,0,.82,0);
+const tip=G('tip',-2.4,.8,-6.6),tb=M(0x151518,{roughness:.4});box(tip,1.1,1.3,.45,tb,0,.9,.1);box(tip,1.1,1.0,.08,STEEL,0,1.05,-.2);cyl(tip,.15,.15,.12,BLK,0,1.3,-.26,12).rotation.x=Math.PI/2;[-.38,0,.38].forEach(x=>box(tip,.07,.4,.04,GOLD,x,.2,.1));
+vtag(tip,txt('TIP120',1,.4,'#cfd3d8'),1,.4,0,.9,.33);
+function res(x,z,c1,c2,c3,len){const g=new THREE.Group();g.position.set(-3+x,.98,-7+z);scene.add(g);const rm=M(0xd8be86,{roughness:.5}),b=cyl(g,.15,.15,.9,rm,0,0,0,16);b.rotation.z=Math.PI/2;[-.45,.45].forEach(dx=>ico(g,.16,rm,dx,0,0,1,1,1,1));[[-.28,c1],[-.1,c2],[.08,c3],[.3,0xd4af37]].forEach(([dx,c])=>{const r=cyl(g,.16,.16,.07,M(c,{metalness:c==0xd4af37?.8:0}),dx,0,0,16);r.rotation.z=Math.PI/2});const l=cyl(g,.03,.03,len,STEEL,0,0,0,6);l.rotation.z=Math.PI/2;[-1,1].forEach(s=>cyl(g,.03,.03,.35,STEEL,s*len/2,-.17,0,6))}
+res(-1.9,.7,0xff7a00,0xff7a00,0x6d3a14,1.6);res(1.4,-.7,0x6d3a14,0x111111,0xef7d00,1.6);
+{const g=new THREE.Group();g.position.set(-2.6,.98,-6.1);scene.add(g);const d=cyl(g,.14,.14,.7,BLK,0,0,0,14);d.rotation.z=Math.PI/2;const s=cyl(g,.15,.15,.1,M(0xd0d0d0),-.22,0,0,14);s.rotation.z=Math.PI/2;const l=cyl(g,.03,.03,1.5,STEEL,0,0,0,6);l.rotation.z=Math.PI/2}
+W(V(-4.1,.98,-6.3),V(-2.78,.86,-6.5),0xf2c200,.7);W(V(-2.02,.86,-6.5),V(-1.0,.86,-8.2),0x1c1c20,.8);W(V(-2.4,.86,-6.5),V(-1.9,.86,-5.7),0x2b6fd6,.5);
+// ---------- 5 V supply ----------
+const psu=G('psu',4,0,-9);rb(psu,3,1.7,2,.35,M(0xf3f3f1,{roughness:.35}),0,0,0);[-.5,.5].forEach(x=>box(psu,.12,.9,.04,GOLD,x,.8,-1.05));
+box(psu,1.2,.3,.1,STEEL,0,1.4,.9);tag(psu,txt('5V  2A',1.8,.5,'#444'),1.8,.5,0,1.72,0);box(psu,.14,.08,.14,M(0x35e06a,{emissive:0x35e06a,emissiveIntensity:1.4}),1.0,1.2,.9);
+// ---------- tank, HW-038, pump, tube ----------
+const tank=G('tank',10.5,0,-2),gl=M(0xbfe0f5,{roughness:.1});gl.transparent=true;gl.opacity=.22;
+const wl=cyl(tank,2.25,2.25,6,M(0x4aa3e8,{roughness:.2}),0,3.1,0,40);wl.material.transparent=true;wl.material.opacity=.75;wl.castShadow=false;
+cyl(tank,2.4,2.4,6.4,gl,0,3.2,0,40).castShadow=false;add(tank,new THREE.TorusGeometry(2.4,.1,8,40),M(0xdde6ee),0,6.4,0).rotation.x=Math.PI/2;
+vtag(tank,ctex(110,512,(c,w,h)=>{c.fillStyle='#103a5c';c.font='bold 22px sans-serif';for(let k=0;k<=5;k++){const y=h-18-k*(h-36)/5;c.fillRect(4,y,44,3);if(k>0)c.fillText(k*100,52,y+8)}c.font='bold 18px sans-serif';c.fillText('mL',52,26)}),1.1,5.7,1.0,3.2,2.24);
+const hw=G('hw',11.7,.4,-2);box(hw,.9,4.4,.08,M(0xc62828,{roughness:.4}),0,2.4,0);
+vtag(hw,ctex(90,440,(c,w,h)=>{c.strokeStyle='#e8c35a';c.lineWidth=5;for(let k=0;k<12;k++){const y=130+k*24;c.beginPath();c.moveTo(14,y);c.lineTo(w-14,y);c.stroke()}c.fillStyle='#fff';c.font='bold 15px sans-serif';c.textAlign='center';c.fillText('HW-038',w/2,40);c.fillText('S  +  -',w/2,70)}),.9,4.4,0,2.4,.05);box(hw,.6,.25,.25,BLK,0,4.7,0);[-.2,0,.2].forEach(x=>box(hw,.06,.35,.06,GOLD,x,4.95,0));
+const pumpM=M(0x37474f,{roughness:.4,metalness:.4}),pumpG=G('pump',9.4,.4,-2);cyl(pumpG,.8,.8,1.3,pumpM,0,.65,0,24);[.3,.65,1.0].forEach(y=>cyl(pumpG,.84,.84,.06,M(0x263238,{metalness:.5}),0,y,0,24));cyl(pumpG,.65,.65,.2,STEEL,0,1.4,0,24);cyl(pumpG,.2,.2,.5,M(0x9fb8c9),0,1.75,0,10);cyl(pumpG,.27,.27,.1,M(0x9fb8c9),0,1.95,0,10);
+box(pumpG,.9,.25,.9,M(0x263238),0,.12,0);for(let k=0;k<4;k++)box(pumpG,.1,.05,.3,BLK,-.3+k*.2,.26,0);box(pumpG,.5,.35,.5,M(0xc62828),0,.2,.85);
+const tcv=new THREE.CatmullRomCurve3([V(9.4,2.2,-2),V(9.4,8,-2.2),V(4.5,7.8,-1),V(1.6,5.8,.4),V(1.4,3.7,.5)]);
+add(null,new THREE.TubeGeometry(tcv,40,.12,8),M(0xcfe9ff,{roughness:.2}),0,0,0).material.transparent=true;
+const drops=[];for(let k=0;k<8;k++){const d=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),new THREE.MeshBasicMaterial({color:0x6fc0ff}));d.visible=false;scene.add(d);drops.push(d)}
+// ---------- ESP32-CAM on mast ----------
+const cm=G('cam',0,0,10);cyl(cm,1.1,1.2,.25,M(0x37474f,{metalness:.5}),0,.12,.8,32);cyl(cm,.2,.28,5.4,M(0x60707d,{metalness:.6,roughness:.4}),0,2.7,.8,16);box(cm,.5,.5,.9,STEEL,0,5.6,.4);
+const cb=new THREE.Group();cb.position.set(0,6.2,0);cb.rotation.x=-Math.PI/2+.12;cb.scale.setScalar(.75);cm.add(cb);
+rb(cb,2.9,.14,4.1,.15,M(0x1a7a42,{roughness:.4}),0,-.07,0);
+box(cb,1,.4,1,BLK,0,.27,1.15);cyl(cb,.34,.34,.22,M(0x0b0b0d,{roughness:.15,metalness:.6}),0,.58,1.15,28);cyl(cb,.2,.2,.24,M(0x22345a,{roughness:.05,metalness:.8}),0,.6,1.15,24);box(cb,.7,.03,.5,M(0xd08a2a),0,.09,.45);
+box(cb,1.7,.2,1.5,STEEL,0,.17,-.5);tag(cb,txt('ESP32-S',1.5,.4,'#555'),1.5,.4,0,.28,-.5);box(cb,1.4,.22,1.0,STEEL,0,-.2,-1.2);
+for(let k=0;k<8;k++)[-1.28,1.28].forEach(x=>box(cb,.1,.3,.1,GOLD,x,-.12,-1.7+k*.5));
+box(cb,.35,.1,.35,M(0xffffff,{emissive:0xffffff,emissiveIntensity:.4}),.9,.1,.6);box(cb,.4,.15,.4,BLK,-.9,.12,-1.8);tag(cb,txt('ESP32-CAM',1.8,.4,'#dff2d8'),1.8,.4,0,.08,1.85);
+// ---------- laptop + phone ----------
+const lap=G('lap',-14,0,8);lap.rotation.y=.55;rb(lap,6.4,.3,4.2,.3,M(0x90a4ae,{metalness:.7,roughness:.4}),0,0,0);tag(lap,ctex(512,256,(c,w,h)=>{c.fillStyle='#2b3238';c.fillRect(0,0,w,h);c.fillStyle='#46525c';for(let r=0;r<5;r++)for(let k=0;k<14;k++)c.fillRect(8+k*35,8+r*40,31,34)}),5.4,2.2,0,.31,.4);rb(lap,1.8,.02,1.1,.1,M(0x7f929e,{roughness:.3,metalness:.6}),0,.3,1.45);cyl(lap,.12,.12,6,M(0x56646d,{metalness:.7}),0,.3,-2,12).rotation.z=Math.PI/2;
+const lid=new THREE.Group();lid.position.set(0,.3,-2);lid.rotation.x=-.25;lap.add(lid);box(lid,6.4,4.4,.2,M(0x37474f,{metalness:.5,roughness:.4}),0,2.3,0);cyl(lid,.06,.06,.02,BLK,0,4.35,.115,10).rotation.x=Math.PI/2;
+const RT=new THREE.WebGLRenderTarget(480,360),cam2=new THREE.PerspectiveCamera(60,4/3,.3,80);cam2.position.set(0,6.4,8.6);cam2.lookAt(0,3.7,0);cam2.updateMatrixWorld();
+const ov=document.createElement('canvas');ov.width=480;ov.height=360;const ovt=new THREE.CanvasTexture(ov);
+const scr1=new THREE.Mesh(new THREE.PlaneGeometry(5.6,4.2),new THREE.MeshBasicMaterial({map:RT.texture,toneMapped:false}));scr1.position.set(0,2.3,.11);lid.add(scr1);
+const scr2=new THREE.Mesh(new THREE.PlaneGeometry(5.6,4.2),new THREE.MeshBasicMaterial({map:ovt,transparent:true,toneMapped:false}));scr2.position.set(0,2.3,.12);lid.add(scr2);
+const hand=G('phone',14,0,8);hand.rotation.y=-.5;const sk=M(0xe0ac85,{roughness:.7});box(hand,2.8,.7,3,sk,0,1,.6);box(hand,.7,.5,1.3,sk,-1.5,1.1,-.2).rotation.y=.4;for(let k=0;k<4;k++)box(hand,.55,.5,1.6,sk,-1+k*.65,1,2.6);
+const ph=new THREE.Group();ph.position.set(0,2.1,.4);ph.rotation.x=-.55;hand.add(ph);rb(ph,2.4,.25,4.6,.35,M(0x111111,{roughness:.3,metalness:.6}),0,-.12,0);
+const pc=document.createElement('canvas');pc.width=240;pc.height=460;const pct=new THREE.CanvasTexture(pc);const ps=new THREE.Mesh(new THREE.PlaneGeometry(2.2,4.4),new THREE.MeshBasicMaterial({map:pct,toneMapped:false}));ps.rotation.x=-Math.PI/2;ps.position.y=.14;ph.add(ps);
+// ---------- selector arrows ----------
+const arL=G('prev',-5.2,2,0),arR=G('next',5.2,2,0);[[arL,1],[arR,-1]].forEach(([g,s])=>{const c=cyl(g,0,.7,1.3,M(0x2f7fd1,{roughness:.3}),0,0,0,4);c.rotation.z=s*Math.PI/2;c.rotation.y=Math.PI/4});
+// ---------- wires ----------
+const w=(a,b,c,l)=>W(V(...a),V(...b),c,l);
+w([-8.8,.9,-2.8],[-5.3,1.0,-6.3],0xf2c200,2);w([-2.5,1.0,-6.4],[9.0,1.0,-2.6],0x2b6fd6,3);w([4.8,1.4,-8.3],[10.2,1.2,-2.7],0xd32f2f,3);
+w([3.4,1.4,-8.3],[-1.9,1.0,-6.4],0x1c1c20,2);w([-1.9,1.0,-6.4],[-8.8,.9,-5.2],0x1c1c20,2);w([-6.3,.7,3.2],[-9.0,.9,.4],0x8a4fd1,2);
+w([11.7,4.8,-2],[-9.0,.9,-1.2],0x00acc1,7);w([0,6.2,10],[-8.2,.9,.9],0xff9800,4);w([1.1,5.5,.4],[-5.1,.6,3.1],0x777777,2);
+// ---------- info + markers ----------
+INFO.esp=['ESP32 on expansion board','ESP32 WROOM runs the Soil Buddy sketch. Soil AO to GPIO35 (ADC1), HW-038 to GPIO34 (ADC1), GPIO26 to the TIP120 base through 330 ohm. Bluetooth name: Soil Buddy RE.',V(-12,2.4,-4),16];
+INFO.bb=['Breadboard: TIP120 driver','GPIO26 > 330 ohm > TIP120 base, emitter to GND, collector to pump negative. 10k base-to-emitter pull-down keeps the pump off at reset. Flyback diode (stripe to +5 V) across the pump. The TIP120 drops voltage, so measure the pump; a logic-level MOSFET is better for the final build.',V(-3,1.4,-7),13];
+INFO.psu=['5 V supply','Separate regulated 5 V for the pump. Never power the pump from an ESP32 pin. Its GND must be common with the ESP32.',V(4,1.5,-9),12];
+INFO.pump=['5 V mini pump','Submerged in the tank. AUTO runs 1 s pulses with a 90 s soak, max 2 pulses, then a 5 min break, and is blocked below the low-water cutoff. Pump test runs 30 s and bypasses that guard.',V(9.4,1.2,-2),11];
+INFO.tank=['Water tank (500 mL)','Ticks mark 100 mL steps. The level here is the simulated true level.',V(10.5,3,-2),13];
+INFO.hw=['HW-038 water level sensor','Signal to GPIO34. It only senses the lower part of the tank, so calibrate with a ruler. The app shows an estimate.',V(11.7,2.8,-2),11];
+INFO.probe=['Resistive soil probe','Probe in the pot, module (LM393) beside it, AO to GPIO35. The simulator hides the true moisture; the app only receives a noisy reading on the meter scale.',V(-3,2,3),14];
+INFO.cam=['ESP32-CAM (simulated)','Separate module: the AI-Thinker ESP32-CAM does not expose GPIO34/35, so it cannot replace the WROOM. Detection here is simulated, not a real model.',V(0,5.6,8),12];
+INFO.lap=['Laptop','Shows the ESP32-CAM view with detection boxes. Click again to zoom out.',V(-14,2.6,8),11];
+INFO.phone=['Phone app','Connect over Bluetooth, join the camera Wi-Fi, then the dashboard and terminal.',V(14,2.5,8),12];
+INFO.plant=['Plant','Pilot watering profile for the selected plant. Use the arrows to change plants.',V(0,3.5,0),14];
+const MK=['esp','bb','psu','pump','tank','hw','probe','cam','lap','phone'];let selId=null;
+$('mks').innerHTML=MK.map((id,i)=>'<button class="mk" data-id="'+id+'">'+(i+1)+'</button>').join('');
+document.querySelectorAll('.mk').forEach(b=>b.onclick=()=>pickId(b.dataset.id));
+function pickId(id){if(id=='prev')return setAct(act-1);if(id=='next')return setAct(act+1);const f=INFO[id];if(!f)return;selId=id;
+const t=$('info');t.style.display='block';t.innerHTML='<b>'+f[0]+'</b><br>'+f[1];document.querySelectorAll('.mk').forEach(b=>b.classList.toggle('on',b.dataset.id==id));
+if(id=='lap'){fly(V(-14,2.6,8),11,.9,1.35);zoomedLap=true}else if(id=='phone')openPhone();else{fly(f[2],f[3],null,1.0);zoomedLap=false}}
+// ---------- camera orbit ----------
+let sp={r:44,th:.3,ph:1.0},tg=V(0,2,0),td=V(0,2,0),dg=null,ds=null,spd={r:44,th:.3,ph:1.0},zoomedLap=false;
+function setCam(){tg.lerp(td,.08);['r','th','ph'].forEach(k=>sp[k]+=(spd[k]-sp[k])*.08);cam.position.set(tg.x+sp.r*Math.sin(sp.ph)*Math.sin(sp.th),tg.y+sp.r*Math.cos(sp.ph),tg.z+sp.r*Math.sin(sp.ph)*Math.cos(sp.th));cam.lookAt(tg)}
+function fly(v,r,th,ph){td.copy(v);spd.r=r;if(th!=null)spd.th=th;if(ph!=null)spd.ph=ph}
+function goHome(){fly(V(0,2.5,0),44,.3,1.0);zoomedLap=false;$('info').style.display='none';selId=null;document.querySelectorAll('.mk').forEach(b=>b.classList.remove('on'))}
+function openPhone(){$('ph').classList.add('on');fly(V(14,2.5,8),12,-.4,1.2)}
+const cv=R.domElement,ptr=new Map();let pd=0;cv.style.touchAction='none';
+cv.addEventListener('pointerdown',e=>{ptr.set(e.pointerId,[e.clientX,e.clientY]);dg=[e.clientX,e.clientY];ds=[e.clientX,e.clientY];pd=0});
+cv.addEventListener('pointercancel',e=>{ptr.delete(e.pointerId);dg=ds=null});
+addEventListener('pointermove',e=>{if(!ptr.has(e.pointerId))return;ptr.set(e.pointerId,[e.clientX,e.clientY]);if(ptr.size==2){const [a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd)spd.r=clamp(spd.r*pd/d,6,80);pd=d;ds=null;return}if(!dg)return;spd.th-=(e.clientX-dg[0])*.006;spd.ph=clamp(spd.ph-(e.clientY-dg[1])*.006,.2,1.5);sp.th=spd.th;sp.ph=spd.ph;dg=[e.clientX,e.clientY]});
+cv.addEventListener('wheel',e=>{e.preventDefault();spd.r=clamp(spd.r*(1+e.deltaY*.001),6,80)},{passive:false});
+const ray=new THREE.Raycaster();
+cv.addEventListener('pointerup',e=>{const had=!!ds,moved=ds&&Math.hypot(e.clientX-ds[0],e.clientY-ds[1])>=5;ptr.delete(e.pointerId);dg=ds=null;if(!had||moved)return;
+ray.setFromCamera({x:e.clientX/innerWidth*2-1,y:-e.clientY/innerHeight*2+1},cam);const h=ray.intersectObjects(pk,true)[0];if(!h)return;let o=h.object;while(o&&!(o.userData&&o.userData.id))o=o.parent;if(!o)return;
+if(o.userData.id=='lap'&&zoomedLap){goHome();return}pickId(o.userData.id)});
+let pop=0;
+function showPlant(){PL.forEach((p,i)=>p.visible=i==act)}
+// ---------- sim ----------
+function say(t){const l=document.createElement('div');l.textContent=t;$('out').appendChild(l);while($('out').childNodes.length>200)$('out').firstChild.remove();$('out').scrollTop=1e9;msg=t;
+const sl=$('log');if(sl)sl.textContent=t}
+const F=()=>$('selF').value,rnd=()=>Math.random();
+function setAct(i){act=(i+5)%5;below=above=done=0;demand=false;pop=0;showPlant();runDet();selUI();say('Plant: '+P[act].n+'. Counters reset.')}
+function readSoil(){if(F()=='probe'){soilOK=false;return -1}soilOK=true;return clamp(tr[act]+(rnd()+rnd()-1)*2,0,100)}
+function readWater(){if(F()=='water')water=Math.min(water,1);return Math.max(0,water+(rnd()-.5)*.2)}
+function profIdx(){return det.pred!=null?det.pred:act}
+function runDet(){const mis=+$('rMis').value/100+(F()=='blur'?.3:0),p=rnd()<mis?(act+1+Math.floor(rnd()*4))%5:act,c=Math.round(clamp((F()=='blur'?.55:.86)+rnd()*.1-(p!=act?.2:0),.3,.99)*100),rest=[0,1,2,3,4].filter(k=>k!=p&&k!=act),o=p!=act?[act,rest[Math.floor(rnd()*3)]]:rest.sort(()=>rnd()-.5).slice(0,2),a=Math.round((100-c)*(.55+rnd()*.2));det={pred:p,conf:c,top:[[p,c],[o[0],a],[o[1],100-c-a]]}}
+const adcS=s=>Math.round(clamp((100-s)/100,0,1)*4095),adcW=w=>Math.round(clamp(w/9,0,1)*4095),mlW=w=>Math.round(clamp(w/9*500,0,500)),sfe=w=>w>=CUT;let lowL=false;
+function startPump(s,man){
+if(man){if(pump)stopPump('switching to the supervised test.');setAuto(false,1);demand=false;below=above=0;lockUntil=0;pump=true;pLeft=30;manual=true;say('SUPERVISED 30-SECOND PUMP TEST STARTED.\nThis test bypasses the HW-038 low-water interlock. Stay beside the device; send pump off to stop early.');return true}
+if(!sfe(lastW)){say('AUTO watering paused: LOW WATER OR HW-038 SIGNAL FAULT.');return false}
+pump=true;pLeft=s;manual=false;say('AUTO watering started: one 1-second pilot pulse.');return true}
+function stopPump(why,fin){if(!pump)return;const t=manual;pump=false;manual=false;say('PUMP OFF: '+why);if(t){say('The 30-second pump test has ended. The pump is OFF.');return}
+if(fin){done++;nextOK=simT+90;if(done>=2){lockUntil=simT+300;say('Two AUTO pulses completed. 5-minute protection break.')}else say('Soak time: letting water spread for 90 seconds.')}else if(demand)nextOK=simT+90}
+function tick(){simT++;P.forEach((p,i)=>tr[i]=Math.max(5,tr[i]-p.r/60));const s=readSoil(),w=readWater();lastSoil=s;lastW=w;const pr=P[profIdx()];
+if(pump){if(F()!='stuck'){tr[act]=Math.min(95,tr[act]+6);water=Math.max(0,water-.12)}pLeft--;
+if(manual){if(pLeft<=0)stopPump('30-second supervised test duration reached.')}
+else if(!sfe(w)){stopPump('SAFETY STOP: low or abnormal HW-038 reading.');setAuto(false,1);say('AUTO disabled. Refill, then send pump auto.')}
+else if(soilOK&&s>=pr.sp)stopPump('soil index reached the adequate zone.');
+else if(pLeft<=0){stopPump('1-second AUTO pilot pulse completed.',1);if(F()=='stuck')say('WARNING (sim check): pump ran but moisture did not rise. Check pump and tubing.')}}
+if(soilOK){if(s<=pr.st){above=0;if(below<3)below++;if(below>=3&&!demand){demand=true;done=0;lockUntil=0;say('Soil is in the relatively dry zone ('+s.toFixed(1)+'% relative index). Watering demand activated.')}}
+else if(s>=pr.sp){below=0;if(above<3)above++;if(above>=3&&demand){demand=false;done=0;lockUntil=0;nextOK=0;say('Soil index is in the wetter zone ('+s.toFixed(1)+'%). Watering demand cleared.')}}else{below=above=0}}
+else if(simT%20==0)say('Soil probe reading invalid. AUTO watering skipped.');
+if(!sfe(w)&&!lowL){lowL=true;say('Water level is low or the HW-038 signal is abnormal. AUTO irrigation is blocked.')}else if(lowL&&w>=REC){lowL=false;say('Water signal recovered. AUTO water guard is clear.')}
+if(auto&&!pump&&demand){if(lockUntil&&simT>=lockUntil){lockUntil=0;done=0;say('Protection break complete. Checking the soil again.')}
+if(!lockUntil&&simT>=nextOK&&soilOK&&s<=pr.st)startPump(1)}
+if(simT%10==0&&csv.length<6000)csv.push([simT,P[act].n,pr.n,tr[act].toFixed(1),soilOK?s.toFixed(1):'NA',w.toFixed(2),pump?1:0].join(','));
+if(live&&simT%5==0)rStatus()}
+const mood=s=>{const p=P[profIdx()];return s<=p.st?'Relatively dry':s>=p.sp?'Relatively wet':'Middle range'};
+function rSoil(){say('SOIL CHECK-IN\nRaw ADC: '+(soilOK?adcS(lastSoil):'--')+' / 4095\n'+(soilOK?mood(lastSoil)+' ('+lastSoil.toFixed(1)+'% relative index)':'Probe reading unavailable')+'\nThe percentage is an uncalibrated ADC index, not verified soil-water content.\nPlant: '+P[profIdx()].n)}
+function rWater(){say('RESERVOIR CHECK-IN\nEstimated water: '+mlW(lastW)+' mL / 500 mL\nHW-038 ADC: '+adcW(lastW)+' / 4095\n'+(sfe(lastW)?(mlW(lastW)<150?'Getting low (rough estimate)':'Water signal sufficient for AUTO'):'LOW / CHECK SENSOR')+'\nAUTO low-water ADC cutoff: 650 counts.\nmL is an uncalibrated estimate, not a measured volume.')}
+function rStatus(){say('LIVE STATUS\nSoil: '+(soilOK?lastSoil.toFixed(1)+'% relative index (ADC '+adcS(lastSoil)+')':'UNAVAILABLE')+'\nWater: ~'+mlW(lastW)+' mL / 500 mL (ADC '+adcW(lastW)+')\nPump mode: '+(manual?'TIMED TEST':auto?'AUTO':'OFF / STANDBY')+'\nPump state: '+(pump?'ON':'OFF')+'\nWatering demand: '+(demand?'ACTIVE':'CLEAR')+'\nWater guard: '+(sfe(lastW)?'PASS (pilot threshold)':'LOW / FAULT, AUTO BLOCKED')+'\nLive chat: '+(live?'ON':'OFF'))}
+function rThr(){const p=P[profIdx()];say('IRRIGATION RULES ('+p.n+')\nStart demand: '+p.st+'% relative index or lower for 3 readings.\nClear demand: '+p.sp+'% or higher for 3 readings.\nAUTO pulse 1 s, soak 90 s, max 2 pulses, then a 5-minute break.\nPump test: 30 s, bypasses the water guard.\nAll thresholds are pilot settings; validate on the physical setup.')}
+function cmdRun(c){c=c.trim().toLowerCase();if(!c)return;say('> '+c);const is=(...a)=>a.includes(c);
+if(is('help','?','commands'))say('Commands: help, soil / sms, water, status, chat on / chat off, pump test, pump off, pump auto, threshold\nSimulator extras: plant <name>, scan, refill, clear');
+else if(is('soil','sms','soil moisture'))rSoil();
+else if(is('water','water level','water status','ml'))rWater();
+else if(is('status','all'))rStatus();
+else if(is('chat on','live on','auto on')){live=true;say('Live chat ON. Status every 5 seconds.')}
+else if(is('chat off','live off','auto off')){live=false;say('Quiet mode ON. Safety alerts and command replies continue.')}
+else if(is('pump test','test','pump on','on'))startPump(30,1);
+else if(is('pump off','off')){if(pump)stopPump('user stop command.');setAuto(false,1);demand=false;below=above=0;lockUntil=0;say('Pump is OFF and AUTO is disabled. Send pump auto to resume automatic watering.')}
+else if(is('pump auto','auto pump','auto')){if(pump&&manual)stopPump('leaving test mode and switching to AUTO.');setAuto(true,1);say(sfe(lastW)?'AUTO mode enabled. Using the soil index and the HW-038 low-water guard.':'AUTO enabled, but the pump is blocked: water is below the pilot threshold.')}
+else if(is('threshold'))rThr();
+else if(is('pump'))say('pump test = 30 s timed test; pump off = stop; pump auto = automatic irrigation.');
+else if(c.startsWith('plant ')){const i=P.findIndex(p=>p.n.toLowerCase()==c.slice(6));if(i<0)say('Unknown plant.');else setAct(i)}
+else if(c=='scan'){runDet();say('Camera scan: '+det.top.map(t=>P[t[0]].n+' '+t[1]+'%').join(', '))}
+else if(c=='refill'){water=9;say('Tank refilled.')}else if(c=='clear')$('out').innerHTML='';
+else say('Command not recognized. Send help.')}
+function setAuto(v,q){auto=v;$('bAuto').textContent='Auto: '+(v?'ON':'OFF');if(!q)say('Automatic control '+(v?'ENABLED':'DISABLED'))}
+// ---------- overlay ----------
+function drawOv(q,blur){const w=480,h=360;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+for(let a=0;a<8;a++){const v=V(a&1?2.7:-2.7,a&2?7.6:.6,a&4?2.7:-2.7).project(cam2);const X=(v.x+1)/2*w,Y=(1-v.y)/2*h;x0=Math.min(x0,X);x1=Math.max(x1,X);y0=Math.min(y0,Y);y1=Math.max(y1,Y)}
+x0=clamp(x0,4,w-14);x1=clamp(x1,x0+10,w-4);y0=clamp(y0,22,h-14);y1=clamp(y1,y0+10,h-4);
+q.save();q.beginPath();q.rect(0,0,w,h);q.clip();
+const c=P[det.pred].col;q.strokeStyle=c;q.lineWidth=3;q.strokeRect(x0,y0,x1-x0,y1-y0);
+const ly=y0>=40?y0-20:y0+3;q.font='bold 14px sans-serif';q.fillStyle=c;q.fillRect(x0,ly,150,20);q.fillStyle='#000';q.fillText(P[det.pred].n+' '+det.conf+'%',x0+5,ly+15);
+const by=y1<h-42?y1+3:y1-40;q.font='12px sans-serif';q.fillStyle='rgba(0,0,0,.55)';q.fillRect(x0,by,132,34);q.fillStyle='#fff';det.top.slice(1).forEach((t,i)=>q.fillText(P[t[0]].n+' '+t[1]+'%',x0+5,by+14+i*14));
+if(blur){q.fillStyle='rgba(255,255,255,.3)';q.fillRect(0,0,w,h)}q.fillStyle='rgba(0,0,0,.55)';q.fillRect(0,0,w,18);q.fillStyle='#bfe2ff';q.font='11px monospace';q.fillText('ESP32-CAM  480x360',6,13);q.restore()}
+function drawPhone(){const q=pc.getContext('2d');q.fillStyle='#f5efe3';q.fillRect(0,0,240,460);q.fillStyle='#1f2a36';q.font='bold 17px sans-serif';q.fillText('Soil Buddy',16,34);
+q.font='bold 44px sans-serif';q.fillText(soilOK&&lastSoil!=null?lastSoil.toFixed(0)+'%':'--',16,110);q.font='14px sans-serif';q.fillStyle='#6b7785';q.fillText('soil moisture',16,134);
+q.fillStyle='#4aa3e8';q.fillRect(16,170,208,16);q.fillStyle='#e3dac8';q.fillRect(16+208*clamp(lastW/9,0,1),170,208*(1-clamp(lastW/9,0,1)),16);q.fillStyle='#1f2a36';q.fillText('Water '+lastW.toFixed(1)+' cm',16,210);q.fillText('Pump '+(pump?'on':'off'),16,236);q.fillStyle='#2f7fd1';q.fillText('Tap the hand to open',16,430);pct.needsUpdate=true}
+// ---------- UI ----------
+const sz=()=>{R.setPixelRatio($('cHq').checked?Math.min(devicePixelRatio,2):1);R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();const s=$('cHq').checked?2048:1024;sun.shadow.mapSize.set(s,s);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}};
+addEventListener('resize',sz);$('cHq').onchange=sz;
+$('bMenu').onclick=()=>$('menu').hidden=!$('menu').hidden;
+$('bAuto').onclick=()=>setAuto(!auto);$('bTest').onclick=()=>cmdRun('pump test');
+$('rMis').oninput=e=>{$('mv').textContent=e.target.value+'%';runDet()};$('selF').onchange=runDet;
+let sd=0;['rWat','rSoil'].forEach(i=>$(i).addEventListener('pointerdown',()=>sd=1));addEventListener('pointerup',()=>sd=0);
+$('rWat').oninput=e=>{water=+e.target.value/500*9;lastW=water;$('wv').textContent=e.target.value+' mL'};
+$('rSoil').oninput=e=>{tr[act]=+e.target.value;lastSoil=readSoil();$('sLv').textContent=e.target.value+'%'};
+$('bRef').onclick=()=>cmdRun('refill');$('bCsv').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv.join('\n')],{type:'text/csv'}));a.download='soil_buddy_sim.csv';a.click()};
+$('cMk').onchange=e=>$('mks').style.display=e.target.checked?'':'none';
+function theme(){const d=$('cDk').checked;document.documentElement.dataset.theme=d?'dark':'light';scene.background=new THREE.Color(d?0x13202b:0xdde5da);scene.fog=new THREE.Fog(d?0x13202b:0xdde5da,80,150);deskM.color.setHex(d?0x8a9a8e:0xffffff)}
+$('cDk').onchange=theme;
+$('bLap').onclick=()=>pickId('lap');$('bPh').onclick=openPhone;$('bHome').onclick=goHome;$('bX').onclick=()=>{$('ph').classList.remove('on');goHome()};
+$('bBack').onclick=()=>{$('ph').classList.remove('on');goHome()};$('aX').onclick=()=>{$('ph').classList.remove('on');goHome()};$('aBack').onclick=()=>{$('s-app').classList.remove('on');$('s-conn').classList.add('on')};addEventListener('keydown',e=>{if(e.key=='Escape'){$('ph').classList.remove('on');goHome()}});
+$('bPrev').onclick=()=>setAct(act-1);$('bNext').onclick=()=>setAct(act+1);
+addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key=='ArrowLeft')setAct(act-1);if(e.key=='ArrowRight')setAct(act+1)});
+function selUI(){const p=P[act];$('pn').textContent=p.n;$('ps').textContent=p.en+' · start '+p.st+'% / stop '+p.sp+'%';$('aPl').textContent=p.n}
+// ---------- phone app ----------
+let bt=0,wf=0,gm='g';
+$('bScan').onclick=()=>{$('bScan').disabled=true;$('devs').innerHTML='<div class="row">Scanning...</div>';setTimeout(()=>{$('devs').innerHTML='<div class="row"><div><b>Soil Buddy RE</b><small>Bluetooth, -52 dBm</small></div><button class="p" id="bPair">Connect</button></div>';$('bPair').onclick=pair},1300)};
+function pair(){const b=$('bPair');b.textContent='Pairing...';b.disabled=true;setTimeout(()=>{bt=1;b.textContent='Connected';say('Bluetooth connected: Soil Buddy RE');$('wf').hidden=false;$('bOpen').disabled=false},1200)}
+$('bJoin').onclick=()=>{$('bJoin').disabled=true;$('wfs').textContent='Joining...';setTimeout(()=>{wf=1;$('wfs').textContent='ESP32-CAM connected, 192.168.4.1';$('bJoin').textContent='Joined';$('cn').hidden=true},1200)};
+$('bOpen').onclick=()=>{$('s-conn').classList.remove('on');$('s-app').classList.add('on')};
+document.querySelectorAll('.tb button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tb button').forEach(x=>x.classList.toggle('on',x==b));document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('on',p.id=='pg-'+b.dataset.t))});
+$('gT').onclick=()=>{gm='g';$('gT').classList.add('p');$('pT').classList.remove('p');$('gg').hidden=false;$('pp').hidden=true};
+$('pT').onclick=()=>{gm='p';$('pT').classList.add('p');$('gT').classList.remove('p');$('gg').hidden=true;$('pp').hidden=false};
+$('cmd').addEventListener('keydown',e=>{if(e.key=='Enter'){cmdRun(e.target.value);e.target.value=''}});
+$('bt').innerHTML=[1,2,3,4,5].map(k=>{const y=140-k*24;return '<line x1="'+(30-k*0)+'" x2="40" y1="'+y+'" y2="'+y+'" stroke="#1f2a36"/><text x="44" y="'+(y+3)+'">'+k*100+'</text>'}).join('');
+function pill(el,t,on,bad){el.textContent=t;el.className='pill'+(on?' on':'')+(bad?' bad':'')}
+function updUI(){$('bBack').hidden=!(selId||zoomedLap||$('ph').classList.contains('on'));if(!sd){const m=Math.round(clamp(water/9*500,0,500)/10)*10;$('rWat').value=m;$('wv').textContent=m+' mL';$('rSoil').value=Math.round(tr[act]);$('sLv').textContent=Math.round(tr[act])+'%'}
+const ok=soilOK&&lastSoil!=null,s=ok?lastSoil:0,pr=P[profIdx()];const ml=Math.round(clamp(lastW/9*500,0,500));
+$('dMl').textContent=ml+' mL';$('dWc').textContent='est. '+lastW.toFixed(1)+' cm';
+const y=140-ml/500*120,t=performance.now()/600;let d='M0 '+y;for(let x=0;x<=120;x+=10)d+='L'+x+' '+(y+Math.sin(x/14+t)*2);$('bw').setAttribute('d',d+'V150H0Z');
+$('gv').setAttribute('stroke-dasharray',s+' 100');$('gb').setAttribute('stroke-dasharray',(pr.sp-pr.st)+' 100');$('gb').setAttribute('stroke-dashoffset',-pr.st);$('gn').textContent=ok?s.toFixed(0)+'%':'--';
+const sy=125-s*.55;$('ps2').setAttribute('y',sy);$('ps2').setAttribute('height',140);$('pn2').textContent=ok?s.toFixed(0)+'%':'--';const top=62-s*.35;$('pst').setAttribute('d','M70 70V'+top);$('pl1').setAttribute('cx',58);$('pl1').setAttribute('cy',top+4);$('pl1').setAttribute('rx',6+s*.14);$('pl2').setAttribute('cx',82);$('pl2').setAttribute('cy',top);$('pl2').setAttribute('rx',6+s*.14);
+pill($('dP'),pump?'Pump on':'Pump off',pump);pill($('dA'),auto?'Auto on':'Auto off',auto);pill($('dD'),demand?'Needs water':'No demand',demand,lastW<CUT);
+$('dTh').textContent='Pulses '+done+'/2 · profile '+pr.st+'% to '+pr.sp+'%'+(lockUntil?' · lockout '+(lockUntil-simT)+' s':'');$('dTrue').textContent=$('cRev').checked?'True soil (hidden): '+tr[act].toFixed(1)+'%':'';
+$('dPl').textContent=pr.n;$('dC').textContent=det.conf+'% match';$('dMsg').textContent=msg;
+$('stx').textContent=(pump?'Pump on':'Pump off')+' · auto '+(auto?'on':'off')+' · t='+Math.floor(simT/60)+'m '+(simT%60)+'s'+(F()!='none'?' · fault':'')}
+// ---------- loop ----------
+const px=new Uint8Array(480*360*4),tmp=document.createElement('canvas');tmp.width=480;tmp.height=360;const tq=tmp.getContext('2d'),img=tq.createImageData(480,360);
+let last=performance.now(),fr=0,dT=0,uT=0;
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.1,(now-last)/1000);last=now;fr++;
+acc+=dt*(+$('selT').value);while(acc>=1){tick();acc-=1}
+dT+=dt;if(dT>3){dT=0;runDet()}uT+=dt;if(uT>.25){uT=0;updUI();drawPhone()}
+pop=Math.min(1,pop+dt*3);const e=1+2.7*Math.pow(pop-1,3)+1.7*Math.pow(pop-1,2),dry=clamp((P[act].st+6-tr[act])/25,0,1),pg=PL[act],T=now/1000;
+pg.scale.set(e,e*(1-.2*dry),e);pg.rotation.z=dry*.1+Math.sin(T*1.3)*.015;pg.userData.lm.color.copy(pg.userData.h).lerp(dryC,dry*.85);
+soilM.color.setRGB(.5-.35*tr[act]/100,.36-.25*tr[act]/100,.26-.18*tr[act]/100);wl.scale.y=clamp(water/9,.03,1);wl.position.y=.1+wl.scale.y*3;
+pumpM.emissive.setHex(pump?0x0a8f55:0);const bob=Math.sin(T*3)*.15;arL.position.x=-5.2-bob;arR.position.x=5.2+bob;
+drops.forEach((d,k)=>{d.visible=pump&&F()!='stuck';if(d.visible)d.position.copy(tcv.getPoint(((now/600)+k/8)%1))});
+setCam();scr1.visible=scr2.visible=arL.visible=arR.visible=cm.visible=false;R.setRenderTarget(RT);R.render(scene,cam2);
+const phOn=$('ph').classList.contains('on')&&$('pg-c').classList.contains('on')&&wf;if(phOn&&fr%4==0)R.readRenderTargetPixels(RT,0,0,480,360,px);
+R.setRenderTarget(null);scr1.visible=scr2.visible=arL.visible=arR.visible=cm.visible=true;
+const q=ov.getContext('2d');q.clearRect(0,0,480,360);drawOv(q,F()=='blur');ovt.needsUpdate=true;
+if(phOn&&fr%4==0){img.data.set(px);tq.putImageData(img,0,0);const c=$('pcam').getContext('2d');c.save();if(F()=='blur')c.filter='blur(3px)';c.translate(0,360);c.scale(1,-1);c.drawImage(tmp,0,0);c.restore();c.filter='none';drawOv(c,F()=='blur')}
+R.render(scene,cam);
+document.querySelectorAll('.mk').forEach(b=>{const v=INFO[b.dataset.id][2].clone().project(cam);b.style.display=v.z>1?'none':'';b.style.transform='translate('+(v.x*.5+.5)*innerWidth+'px,'+(-v.y*.5+.5)*innerHeight+'px)'})}
+sz();theme();showPlant();runDet();selUI();say('Soil Buddy RE v3.0 (simulated). Pump OFF and AUTO disabled at boot. Send pump auto to enable, or help.');tick();updUI();requestAnimationFrame(loop);
+</script></body></html>
