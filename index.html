@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign Language Glove - 3D Circuit Simulator</title>
+<style>
+:root{--bg:#e8edf4;--pn:#fff;--tx:#1b2430;--mu:#64748b;--ac:#2563eb;--bd:#d5dbe6;--bar:#e2e8f0}
+:root[data-t=dark]{--bg:#0b1017;--pn:#161d28;--tx:#e6edf5;--mu:#93a1b3;--ac:#60a5fa;--bd:#2a3545;--bar:#263142}
+*{box-sizing:border-box}body{margin:0;display:flex;height:100vh;font:13px system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+#c{flex:1;position:relative;min-width:0}#cv{display:block;width:100%;height:100%}
+#hint{position:absolute;left:10px;bottom:8px;color:var(--mu);font-size:12px}
+#p{width:350px;overflow:auto;background:var(--pn);border-left:1px solid var(--bd);padding:12px}
+h1{font-size:16px;margin:0 0 8px}h1 small{display:block;color:var(--mu);font-weight:400;font-size:12px}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:14px 0 6px}
+button,select{font:inherit;color:var(--tx);background:var(--bar);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;cursor:pointer}
+button:hover{border-color:var(--ac)}.r{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}
+label{display:block;margin:5px 0}input[type=range]{width:100%;accent-color:var(--ac)}select{width:100%}
+.b{display:flex;align-items:center;gap:6px;margin:4px 0}.b span{width:62px}.b b{width:34px;text-align:right}
+.b i{flex:1;height:10px;background:var(--bar);position:relative;border-radius:5px;overflow:hidden}
+.b u{position:absolute;left:0;top:0;bottom:0;background:var(--ac)}.b s{position:absolute;top:0;bottom:0;width:2px;background:#ef4444}
+pre{height:130px;overflow:auto;margin:0;padding:6px;background:#0b1017;color:#7ee787;border-radius:6px;font-size:11px}
+#ic{line-height:1.45}#ou{line-height:1.6}.lc{font:bold 13px monospace;background:#a5d867;color:#16260c;padding:4px 8px;border-radius:4px;white-space:pre}
+#bub{position:absolute;pointer-events:none;background:#fff;color:#111;padding:8px 14px;border-radius:14px;font-weight:700;font-size:15px;box-shadow:0 4px 14px #0005;transform:translate(-50%,-130%);opacity:0;transition:opacity .2s;white-space:nowrap}#bub:after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-8px;border:8px solid transparent;border-bottom:0;border-top-color:#fff}
+@media(max-width:800px){body{flex-direction:column}#p{width:auto;height:46vh;border:0}#c{height:54vh;flex:none}}
+</style></head><body>
+<div id=c><canvas id=cv></canvas><div id=bub></div><div id=hint>Drag: rotate | Wheel: zoom | Click a part to learn about it</div></div>
+<div id=p><h1>Sign Language Glove<small>3D circuit simulator: Arduino Nano + 4 flex sensors + I2C LCD + VC-02 voice</small></h1>
+<div class=r><button id=bt>Light/Dark</button><button id=bq>Quality: High</button><button id=bd>Auto demo: off</button></div>
+<h2>Finger bend</h2><div id=sl></div><div class=r id=ps></div>
+<h2>Firmware and fault tests</h2>
+<select id=fw><option value=fix>Fixed code (else-if, non-blocking, talks to VC-02)</option><option value=orig>Original code (as uploaded, no audio)</option></select>
+<label><input type=checkbox id=lw> A2 flex wire loose (floating input)</label>
+<label><input type=checkbox id=st> A1 sensor stuck (reads flat)</label>
+<label><input type=checkbox id=ad> My LCD is really 0x27 (code says 0x3F)</label>
+<label>9V battery: <b id=vv></b><input type=range id=vb min=45 max=95 value=90></label>
+<h2>Force pins (simulated button to GND)</h2><div id=fp></div><label><input type=checkbox id=snd checked> Sound + browser voice (click anywhere once to allow audio)</label>
+<h2>Analog inputs (ADC 0-1023, red line = threshold)</h2><div id=ab></div>
+<h2>Outputs</h2><div id=ou></div>
+<h2>Serial monitor 9600</h2><pre id=sr></pre>
+<h2>Part info</h2><div id=ic>Click any part in 3D.</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=i=>document.getElementById(i);
+const FN=['Thumb','Index','Middle','Ring'],WD=['WASHROOM','DRINK WATER','FOOD','FRUIT'],SAY=['Washroom','Drink water','Food','Fruit'],TH=[150,200,150,130];
+const INFO={
+glove:'Fabric glove. Flex sensors are sewn on the back of the thumb, index, middle and ring fingers (A0-A3). The pinky has no sensor.',
+flex:'Flex sensor 4.5 in: about 25k flat and about 100k at 90 degrees. One tail goes to 5V, the other to the analog pin and a 10k resistor to GND. ADC = 1023 x 10k / (Rflex + 10k). Your thresholds 150/200/150/130 are compared to this value.',
+perf:'Perfboard on the back of the hand: 4 x 10k resistors to GND, a 5V rail (red) and a GND rail (black). Four signal wires, 5V and GND run up the arm to the Nano.',
+nano:'Arduino Nano. A0-A3 flex inputs, A4 SDA and A5 SCL to the LCD, D3 (TX) to the VC-02 RX through a 1k/2k divider, D13 onboard LED, VIN from the 9V battery. 5V pin powers sensors, LCD and VC-02. Common GND. (3D pin spots are approximate; use the README table to wire.)',
+lcd:'16x2 I2C LCD (HD44780 + PCF8574 backpack). Address is 0x3F or 0x27 depending on the backpack. Blank screen: wrong address (fixed code scans for it) or turn the blue contrast pot.',
+bat:'9V 6F22 battery to VIN. Fine for a demo, but it sags with the backlight on and the Nano regulator gets hot. Better: 2 x 18650 with a boost/charger module, or 4 x AA. Add a slide switch on the red wire.',
+vc:'VC-02 offline voice module. The Nano sends one byte ("1" to "4") at 9600 baud and the module plays the matching phrase you set up on the vendor platform. It is 3.3V logic, so D3 goes through a 1k/2k divider. Check your own board label and UART setup, since I cannot verify it.',
+spk:'8 ohm speaker on the VC-02 speaker pins. Never connect it to Nano pins.'};
+const dk=matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.dataset.t=dk?'dark':'light';
+const cv=$('cv'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.15;R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(40,1,.1,400);
+S.add(new THREE.HemisphereLight(0xffffff,0x445566,.8));
+const L=new THREE.DirectionalLight(0xffffff,1.8);L.position.set(30,60,25);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.bias=-.0004;
+Object.assign(L.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:5,far:160});S.add(L);
+const M=(c,r=.6,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m}),V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const FLR=M(0xc5cedb,1);const fl=new THREE.Mesh(new THREE.PlaneGeometry(240,240),FLR);fl.rotation.x=-Math.PI/2;fl.position.y=-4;fl.receiveShadow=true;S.add(fl);
+function thm(){const d=document.documentElement.dataset.t==='dark',c=d?0x0b1017:0xe8edf4;S.background=new THREE.Color(c);S.fog=new THREE.Fog(c,80,170);FLR.color.setHex(d?0x1a2230:0xc5cedb)}thm();
+const box=(w,h,d,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;(p||S).add(o);return o};
+const cyl=(r,h,mt,x,y,z,p,ax)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,22),mt);o.position.set(x,y,z);if(ax==='z')o.rotation.x=Math.PI/2;if(ax==='x')o.rotation.z=Math.PI/2;o.castShadow=true;(p||S).add(o);return o};
+const sph=(r,mt,x,y,z,p)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),mt);o.position.set(x,y,z);o.castShadow=true;(p||S).add(o);return o};
+const pk=[],G=(id,n,x,y,z,d)=>{const g=new THREE.Group();g.position.set(x,y,z);g.userData={id,n,d:d||18};S.add(g);pk.push(g);return g};
+const at=(g,x,y,z)=>g.position.clone().add(V(x,y,z));
+const W=(a,b,c,l)=>{const m=a.clone().add(b).multiplyScalar(.5);m.y+=l;const cu=new THREE.CatmullRomCurve3([a,a.clone().add(V(0,.4,0)),m,b.clone().add(V(0,.4,0)),b]);S.add(new THREE.Mesh(new THREE.TubeGeometry(cu,24,.08,6),new THREE.MeshBasicMaterial({color:c})))};
+const lab=(t,x,y,z)=>{const c=document.createElement('canvas');c.width=256;c.height=64;const q=c.getContext('2d');q.font='bold 30px system-ui';q.textAlign='center';q.fillStyle='rgba(15,23,42,.85)';q.fillRect(8,8,240,48);q.fillStyle='#fff';q.fillText(t,128,44);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));s.position.set(x,y,z);s.scale.set(5,1.25,1);s.renderOrder=9;S.add(s)};
+const res=(x,y,z,p,cols)=>{cyl(.2,1.5,M(0xd8c08a,.7),x,y,z,p,'z');cols.forEach((c,i)=>cyl(.21,.12,M(c,.7),x,y,z-.45+i*.25,p,'z'))};
+const led=(x,y,z,p)=>{const m=M(0x333333,.4);box(.3,.12,.22,m,x,y,z,p);return m};
+// ---- glove + hand
+const GL=M(0x3b4a63,.95),SK=M(0xe3b08d,.7),FX=M(0xf0a830,.4,.1),hand=G('glove','Glove + flex sensors',0,0,0,26),FG=[];
+box(8,2.2,9.5,GL,0,0,0,hand);box(5.8,2.6,6,GL,0,.1,6.5,hand);
+const fa=cyl(1,22,SK,0,0,20,S,'z');fa.scale.set(2.7,1,1.5);
+function fing(k,x,z,len,r,ry){const g=new THREE.Group();g.position.set(x,.2,z);g.rotation.y=ry;hand.add(g);const p=[];let par=g;
+ len.forEach((l,j)=>{const pv=new THREE.Group();pv.position.z=j?-len[j-1]:0;par.add(pv);p.push(pv);cyl(r,l,GL,0,0,-l/2,pv,'z');sph(r,GL,0,0,j?0:0,pv);
+  if(k<4){const s=box(.5,.05,l*.96,FX,0,r+.03,-l/2,pv);s.userData={id:'flex',n:'Flex sensor'};pk.push(s)}par=pv});
+ sph(r,GL,0,0,-len[2],p[2]);FG.push({k,p})}
+fing(0,-4.1,-1.8,[2.8,2.2,1.8],.65,.75);fing(1,-2.8,-4.75,[3,1.9,1.6],.6,0);fing(2,-.95,-4.75,[3.3,2.1,1.7],.6,0);fing(3,.9,-4.75,[3,1.9,1.6],.58,0);fing(4,2.7,-4.75,[2.3,1.5,1.4],.5,0);
+[13.5,27].forEach(z=>box(6.2,3.3,1.2,M(0x15191f,.9),0,0,z));
+const P=2.1;box(9,.4,19,M(0x2b3140,.8),0,1.9,20.5);
+// ---- perfboard with 10k resistors
+const perf=G('perf','Perfboard + 10k resistors',0,1.1,1,14);box(5.4,.15,3.4,M(0x1f7a45,.5),0,.08,0,perf);
+box(5,.1,.25,M(0xdc2626),0,.2,-1.4,perf);box(5,.1,.25,M(0x111111),0,.2,1.4,perf);
+[-1.8,-.6,.6,1.8].forEach(x=>res(x,.4,0,perf,[0x7a3b0c,0x111111,0xf97316]));
+// ---- Nano
+const nano=G('nano','Arduino Nano',-2.2,P,15,15);box(1.8,.15,4.5,M(0x1f4fa8,.4),0,.1,0,nano);box(1,.12,1,M(0x111111,.4),0,.25,.2,nano);box(.9,.5,.9,M(0xc0c6cf,.3,.9),0,.3,2.0,nano);
+box(.14,.25,4.3,M(0x111111),-.8,.25,0,nano);box(.14,.25,4.3,M(0x111111),.8,.25,0,nano);
+const lPw=led(.2,.2,-.7,nano),lTx=led(.2,.2,-.4,nano),lL=led(.2,.2,-.1,nano);
+// ---- LCD
+const lcdG=G('lcd','16x2 I2C LCD',0,P,21.5,16);box(8,.15,3.6,M(0x1e7a3c,.5),0,.1,0,lcdG);box(7.2,.35,2.8,M(0x111111,.5),0,.3,.1,lcdG);
+box(4.2,.2,.9,M(0x111111,.5),-1.4,.35,-1.3,lcdG);cyl(.3,.25,M(0x2563eb,.4),1.0,.5,-1.3,lcdG);
+const lc=document.createElement('canvas');lc.width=96;lc.height=18;const lx=lc.getContext('2d'),lt=new THREE.CanvasTexture(lc);lt.magFilter=lt.minFilter=THREE.NearestFilter;
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(6.3,1.45),new THREE.MeshBasicMaterial({map:lt,toneMapped:false}));scr.rotation.x=-Math.PI/2;scr.position.set(0,.5,.3);lcdG.add(scr);
+// ---- battery
+const bat=G('bat','9V battery',0,P,27.5,16);box(2.6,1.7,4.9,M(0x1d4ed8,.4),0,.85,0,bat);box(2.62,.5,4.92,M(0xdc2626,.4),0,1.3,0,bat);
+cyl(.35,.4,M(0xc0c6cf,.3,.9),.6,.85,-2.65,bat,'z');cyl(.3,.4,M(0xc0c6cf,.3,.9),-.6,.85,-2.65,bat,'z');
+// ---- VC-02 + speaker
+const vc=G('vc','VC-02 voice module',2.6,P,14.5,14);box(2.6,.12,3,M(0x14532d,.5),0,.1,0,vc);box(1,.14,1,M(0x111111),0,.25,0,vc);box(.5,.14,.9,M(0xc0c6cf,.3,.9),.7,.25,-.9,vc);
+res(.2,P+.25,12.2,S,[0x7a3b0c,0x111111,0xdc2626]);res(.9,P+.25,12.2,S,[0x7a3b0c,0x111111,0x7a3b0c]);
+const spk=G('spk','8 ohm speaker',2.7,P,18.3,14);cyl(1.4,.6,M(0x1a1a1a,.6),0,.3,0,spk);const cone=cyl(.95,.2,M(0x9aa3ad,.4,.5),0,.65,0,spk);sph(.35,M(0x333333),0,.8,0,spk);
+const vr=new THREE.Mesh(new THREE.RingGeometry(.9,1.05,32),new THREE.MeshBasicMaterial({color:0x38bdf8,transparent:true,opacity:0,side:2}));vr.rotation.x=-Math.PI/2;vr.position.set(2.7,P+1.4,18.3);S.add(vr);
+// ---- wires: red 5V, black GND, others signals
+const RD=0xef4444,BK=0x111111,SC=[0x22d3ee,0xe879f9,0xfacc15,0x818cf8],bp=[V(-4.3,1.1,-2.3),V(-2.8,1.3,-4.4),V(-.95,1.3,-4.4),V(.9,1.3,-4.4)];
+[-1.8,-.6,.6,1.8].forEach((x,i)=>{const nd=at(perf,x,.4,-.8);W(bp[i],nd,SC[i],.8);W(bp[i].clone().add(V(.3,0,.1)),at(perf,x+.2,.2,-1.4),RD,.6);W(nd,at(nano,-.85,.35,-1.8+.3*i),SC[i],3.5)});
+W(at(perf,-2.5,.2,-1.4),at(nano,-.85,.35,-.4),RD,3);W(at(perf,2.5,.2,1.4),at(nano,-.85,.35,0),BK,3);
+W(at(bat,.6,.85,-2.9),at(nano,-.85,.35,.6),RD,1.2);W(at(bat,-.6,.85,-2.9),at(nano,-.85,.35,.9),BK,1.2);
+W(at(nano,.85,.35,-1.4),at(lcdG,-2.4,.35,-1.7),0xa855f7,2);W(at(nano,.85,.35,-1.1),at(lcdG,-2.1,.35,-1.7),0xfb923c,2);
+W(at(nano,.85,.35,-.7),at(lcdG,-2.7,.35,-1.7),RD,2.4);W(at(nano,.85,.35,-.4),at(lcdG,-3,.35,-1.7),BK,2.4);
+const nd=V(.4,P+.5,12.2);W(at(nano,.85,.35,.5),nd,0xf1f5f9,1);W(nd,at(vc,-1,.2,-1.3),0xf1f5f9,1);
+W(at(nano,.85,.35,-.2),at(vc,-.4,.2,-1.3),RD,1.5);W(at(nano,.85,.35,.1),at(vc,.2,.2,-1.3),BK,1.5);
+W(at(vc,1,.2,1.3),at(spk,-.7,.4,-1.5),0xeab308,1);W(at(vc,.4,.2,1.3),at(spk,.7,.4,-1.5),0xf59e0b,1);
+lab('Perfboard 10k',0,4.5,1);lab('Nano',-2.2,5,15);lab('VC-02',3.2,5,13.8);lab('Speaker',4.2,5,18.6);lab('LCD 16x2',0,5,21.5);lab('9V',0,5,27.5);
+// ---- camera orbit and picking
+let az=.55,pl=1,rd=52,rt=52;const tg=V(0,0,12),td=V(0,0,12);
+function rs(){const w=$('c').clientWidth,h=$('c').clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+let dn=0,px=0,py=0,mv=0,sel=null;const ry=new THREE.Raycaster();
+cv.addEventListener('pointerdown',e=>{dn=1;px=e.clientX;py=e.clientY;mv=0});
+addEventListener('pointermove',e=>{if(!dn)return;const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;mv+=Math.abs(dx)+Math.abs(dy);az-=dx*.006;pl=Math.min(1.5,Math.max(.15,pl-dy*.006))});
+cv.addEventListener('wheel',e=>{e.preventDefault();rt=rd=Math.min(95,Math.max(8,rd*(1+e.deltaY*.001)))},{passive:false});
+const hl=(g,on)=>g.traverse(o=>{if(!o.isMesh)return;if(on){o.userData.m=o.material;const c=o.material.clone();if(c.emissive){c.emissive.setHex(0x1d4ed8);c.emissiveIntensity=.5}o.material=c}else if(o.userData.m)o.material=o.userData.m});
+addEventListener('pointerup',e=>{if(!dn)return;dn=0;if(mv>=5)return;const r=cv.getBoundingClientRect();
+ ry.setFromCamera({x:(e.clientX-r.left)/r.width*2-1,y:-((e.clientY-r.top)/r.height)*2+1},cam);const h=ry.intersectObjects(pk,true)[0];if(!h)return;
+ let o=h.object;while(o&&!o.userData.id)o=o.parent;if(!o)return;if(sel)hl(sel,0);sel=o;hl(o,1);
+ $('ic').innerHTML='<b>'+o.userData.n+'</b><br>'+INFO[o.userData.id];o.getWorldPosition(td);rt=o.userData.d||18});
+// ---- electronics + firmware simulation
+const frc=[0,0,0,0],tgt=[0,0,0,0],bnd=[0,0,0,0,0];let vb=9,lcdTxt=['SIGN LANGUAGE',''],busy=0,ev=[],cand=-2,shown=-2,stab=0,lastT=0,lastP=0,l13=0,voice=null,txT=0;
+const rnd=n=>Math.floor(Math.random()*n),pw=()=>vb>=5;
+function adc(i){if(frc[i])return rnd(3);if(i===2&&$('lw').checked)return rnd(4);const b=$('st').checked&&i===1?0:bnd[i];return Math.max(0,Math.round(1023*1e4/(25e3+b*85e3+1e4)+rnd(5)-2))}
+const log=s=>{const e=$('sr');e.textContent+=s+'\n';if(e.textContent.length>2600)e.textContent=e.textContent.slice(-1900);e.scrollTop=1e9};
+const setL=t=>{lcdTxt[1]=t};
+let bubT=0,AC=null;
+function sound(i){if(!$('snd').checked)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime;o.frequency.value=520+i*110;g.gain.setValueAtTime(.15,n);g.gain.exponentialRampToValueAtTime(.001,n+.25);o.connect(g);g.connect(AC.destination);o.start();o.stop(n+.25);speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(SAY[i]);u.lang='en-US';setTimeout(()=>speechSynthesis.speak(u),200)}catch(e){}}
+function speak(i,now){if(vb<6.4){log('VC-02 brownout: no sound (battery low)');return}voice={t:now};txT=now;bubT=now;$('bub').textContent='\u{1F50A} '+SAY[i];sound(i);log("TX '"+(i+1)+"' -> VC-02 says "+SAY[i])}
+function proc(now){while(ev.length&&ev[0][0]<=now){const i=ev.shift()[1];if(i>=0){setL(WD[i]);l13=i%2;log(WD[i])}else{setL('NOTHING')}}}
+function fw(now){if(!pw())return;
+ if($('fw').value==='orig'){proc(now);if(now<busy)return;const s=[0,1,2,3].map(adc);log(s.join(' '));let t=now;
+  for(let i=0;i<4;i++)if(s[i]<TH[i]){ev.push([t,i]);t+=2000}if(s[3]>=TH[3])ev.push([t,-1]);busy=t+120;proc(now)}
+ else{if(now-lastT<50)return;lastT=now;const s=[0,1,2,3].map(adc);let p=-1;for(let i=0;i<4;i++)if(s[i]<TH[i]){p=i;break}
+  if(p===cand)stab++;else{cand=p;stab=0}
+  if(stab===3&&p!==shown){shown=p;l13=p>=0?1:0;if(p>=0){setL(WD[p]);log(WD[p]);speak(p,now)}else setL('READY')}
+  if(now-lastP>500){lastP=now;log('A0-A3: '+s.join(' '))}}}
+function lcd(){const on=pw(),dim=vb<6.4,sh=on&&!($('fw').value==='orig'&&$('ad').checked),k=[on,dim,sh,lcdTxt.join('|')].join();if(k===lcd.k)return;lcd.k=k;
+ lx.fillStyle=!on?'#222':dim?'#6f8f55':'#a5d867';lx.fillRect(0,0,96,18);
+ if(sh){lx.fillStyle=dim?'#4a5e3a':'#16260c';lx.font='bold 8px monospace';lx.textBaseline='top';lcdTxt.forEach((t,r)=>{const s=(r?t.length?' '.repeat(Math.floor((16-t.length)/2))+t:'':t).padEnd(16).slice(0,16);for(let c=0;c<16;c++)lx.fillText(s[c],c*6+.5,r*9)})}
+ lt.needsUpdate=true;$('lm').textContent=sh?lcdTxt[0].padEnd(16)+'\n'+lcdTxt[1]:(on?'(blank: wrong I2C address)':'(power off)')}
+const setLed=(m,on,c)=>{m.color.setHex(on?c:0x333333);m.emissive.setHex(on?c:0);m.emissiveIntensity=on?1.6:0};
+// ---- UI
+$('sl').innerHTML=FN.map((n,i)=>`<label>A${i} ${n} <input type=range id=f${i} min=0 max=100 value=0></label>`).join('');
+$('ab').innerHTML=FN.map((n,i)=>`<div class=b><span>A${i} ${n}</span><i><u id=u${i}></u><s style="left:${TH[i]/10.23}%"></s></i><b id=v${i}>0</b></div>`).join('');
+$('ou').innerHTML='<div class=lc id=lm></div><div id=ox></div>';
+const PS={'Washroom':[1,0,0,0],'Drink water':[0,1,0,0],'Food':[0,0,1,0],'Fruit':[0,0,0,1],'Open hand':[0,0,0,0],'Fist (all)':[1,1,1,1]};
+const setT=a=>a.forEach((v,i)=>{tgt[i]=v;$('f'+i).value=v*100});
+Object.keys(PS).forEach(k=>{const b=document.createElement('button');b.textContent=k;b.onclick=()=>setT(PS[k]);$('ps').appendChild(b)});
+FN.forEach((n,i)=>$('f'+i).oninput=e=>tgt[i]=e.target.value/100);
+$('fp').innerHTML=FN.map((n,i)=>`<div class=r>A${i} ${n}: <button id=h${i}>Hold</button><label style="margin:0"><input type=checkbox id=l${i}> latch</label></div>`).join('');
+FN.forEach((n,i)=>{const u=()=>{frc[i]=$('l'+i).checked?1:0},b=$('h'+i);b.onpointerdown=()=>frc[i]=1;b.onpointerup=b.onpointerleave=u;$('l'+i).onchange=u});
+$('vb').oninput=e=>vb=e.target.value/10;
+$('fw').onchange=()=>{ev=[];busy=0;cand=shown=-2;l13=0;lcdTxt[1]=$('fw').value==='fix'?'READY':'';log('--- firmware: '+$('fw').value+' ---')};
+$('bt').onclick=()=>{const d=document.documentElement;d.dataset.t=d.dataset.t==='dark'?'light':'dark';thm()};
+let hq=1;$('bq').onclick=()=>{hq=!hq;$('bq').textContent='Quality: '+(hq?'High':'Low');R.setPixelRatio(hq?Math.min(devicePixelRatio,2):1);L.shadow.mapSize.set(hq?2048:1024,hq?2048:1024);if(L.shadow.map){L.shadow.map.dispose();L.shadow.map=null}rs()};
+let dm=0,di=0;const SEQ=['Open hand','Washroom','Open hand','Drink water','Open hand','Food','Open hand','Fruit'];
+$('bd').onclick=()=>{if(dm){clearInterval(dm);dm=0}else{dm=setInterval(()=>setT(PS[SEQ[di++%8]]),3200)}$('bd').textContent='Auto demo: '+(dm?'on':'off')};
+// ---- main loop
+let t0=performance.now();log('SIGN LANGUAGE glove boot');lcdTxt[1]='READY';let ox='';
+function frame(t){requestAnimationFrame(frame);const dt=Math.min(.05,(t-t0)/1e3);t0=t;
+ for(let i=0;i<4;i++)bnd[i]+=(tgt[i]-bnd[i])*Math.min(1,dt*9);bnd[4]=bnd[3];
+ FG.forEach(f=>{const b=bnd[f.k];f.p[0].rotation.x=-b*1.1;f.p[1].rotation.x=-b*1.5;f.p[2].rotation.x=-b*.8});
+ fw(t);const on=pw();
+ setLed(lPw,on,0x22ff66);setLed(lL,on&&l13,0xffa000);setLed(lTx,on&&t-txT<150,0xffa000);
+ for(let i=0;i<4;i++){const v=on?adc(i):0;$('u'+i).style.width=v/10.23+'%';$('v'+i).textContent=on?v:'-';$('u'+i).style.background=on&&v<TH[i]?'#ef4444':''}
+ lcd();
+ let o=0,k=0;if(voice){k=(t-voice.t)/1500;if(k>1){voice=null;k=0}}
+ vr.material.opacity=voice?1-k:0;vr.scale.setScalar(1+k*2.5);cone.position.y=.65+(voice?Math.sin(t*.06)*.06:0);
+ $('vv').textContent=vb.toFixed(1)+' V (rail '+Math.min(5,Math.max(0,vb-1.4)).toFixed(1)+' V)';
+ const s='Pin 13 LED: '+(on&&l13?'ON':'off')+'<br>VC-02: '+(!on?'no power':voice?'speaking...':'idle')+'<br>Nano: '+(on?(vb<6.4?'brownout risk':'running'):'off');if(s!==ox){ox=s;$('ox').innerHTML=s}
+ const bb=$('bub'),sh=bubT&&t-bubT<2200;bb.style.opacity=sh?1:0;if(sh){const p=V(2.7,P+3.5,18.3).project(cam);bb.style.left=(p.x*.5+.5)*$('c').clientWidth+'px';bb.style.top=(-p.y*.5+.5)*$('c').clientHeight+'px'}
+ tg.lerp(td,.08);rd+=(rt-rd)*.08;
+ cam.position.set(tg.x+rd*Math.sin(pl)*Math.sin(az),tg.y+rd*Math.cos(pl),tg.z+rd*Math.sin(pl)*Math.cos(az));cam.lookAt(tg);R.render(S,cam)}
+requestAnimationFrame(frame);
+</script></body></html>

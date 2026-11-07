@@ -1,12 +1,32 @@
-# Soil Buddy RE – 3D Circuit Simulator (v2)
-Single-file Three.js (r128, cdnjs) simulator: ESP32 WROOM on an expansion board, breadboard with TIP120 driver, 5 V mini pump in a 500 mL tank, HW-038 water sensor, resistive soil probe, and a separate ESP32-CAM (simulated). Laptop camera feed and a phone app.
+# Sign Language Glove - 3D Circuit Simulator
+Single-file Three.js (r128, cdnjs) simulator. Open `index.html`, or publish on GitHub Pages (Settings > Pages > main, root).
 
-**Run:** open `index.html`, or GitHub Settings > Pages > Deploy from branch `main` / root.
+## Controls
+Drag = rotate, wheel = zoom, click a part = info card. Sliders or presets bend the fingers. Switch between **Original** and **Fixed** code. Fault tests: loose A2 wire, stuck A1 sensor, LCD address 0x27, low 9V battery.
 
-**Use:** drag to rotate, wheel to zoom, click a numbered marker or part for info. Use the arrows beside the pot (or Left/Right keys) to switch plant: sili, ampalaya, kangkong, pechay, tomato. All switches are in the Controls dropdown, including sliders for water in the tank (mL) and soil moisture (SMS) level. Works on phones (touch orbit, pinch zoom, full-screen app). Click the laptop for the camera feed (top 3 guesses with confidence). Click the hand to open the phone app: Bluetooth connect, camera Wi-Fi, then dashboard (water bucket in mL, soil gauge or pot), camera and terminal (`help`).
+## Wiring
+| Part | Nano pin |
+|---|---|
+| Flex 1 thumb + 10k to GND | A0 |
+| Flex 2 index + 10k to GND | A1 |
+| Flex 3 middle + 10k to GND | A2 |
+| Flex 4 ring + 10k to GND | A3 |
+| Flex other tail | 5V |
+| LCD SDA / SCL | A4 / A5 |
+| LCD VCC / GND | 5V / GND |
+| VC-02 RX | D3 via 1k (D3 side) + 2k to GND divider |
+| VC-02 VCC / GND | per your board (5V or 3.3V), common GND |
+| Speaker | VC-02 speaker pins only |
+| 9V battery | VIN / GND |
 
-**Wiring (matches the firmware):** soil AO > GPIO35, HW-038 > GPIO34, GPIO26 > 330 ohm > TIP120 base, emitter > GND, collector > pump negative, pump positive > separate 5 V, common GND, flyback diode across the pump, 10k base pull-down. The ESP32-CAM is a separate module (AI-Thinker ESP32-CAM does not expose GPIO34/35).
+ADC = 1023 x 10k / (Rflex + 10k). Flat is about 290, bent 90 degrees is about 90.
 
-**Firmware note:** the simulator follows Soil Buddy RE v3.0 (AUTO off at boot, `pump auto` to enable, 30 s pump test that bypasses the water guard). Replace the .ino in `firmware/` with your v3.0 file and set `SOIL_START_INDEX = 50.0f` and `SOIL_STOP_INDEX = 65.0f` (the simulator uses 50 / 65 for all five plants).
+## Original code issues
+1. `delay(2000)` blocks all sensing; a fist plays 3 words one after another over 8 seconds.
+2. Only the last `if` has an `else`, so NOTHING is written after the delays.
+3. LCD address 0x3F may be 0x27 on your backpack (fixed code scans).
+4. 9V sags under load. Prefer 2 x 18650 or 4 x AA.
+5. The original has no audio code.
 
-**Honest notes:** soil moisture is hidden and the app gets a noisy reading; plant detection is simulated; watering thresholds are pilot values; water ml is an estimate. Firmware: `firmware/Soil_Buddy_RE_v2_3_ESP32_TIP120/`.
+## VC-02 note
+Not verified for your exact board. The sketch sends one byte `'1'`-`'4'` at 9600 baud; set the module's UART commands and phrases on the vendor platform to match, or change `vc.write()`.
